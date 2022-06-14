@@ -1,53 +1,147 @@
-# The Autonomous Driving Cookbook (Preview)
+# AutonomousDrivingCookbook开箱即用手册
 
+## 1. 介绍
+基于微软AirSim模拟器的自动驾驶入门项目汉化版
 
+原项目地址：[https://github.com/Microsoft/AutonomousDrivingCookbook](https://github.com/Microsoft/AutonomousDrivingCookbook)
 
-------
-
-#### **NOTE:**
-
-This project is developed and being maintained by [Project Road Runner](https://www.microsoft.com/en-us/garage/blog/2018/04/project-road-runner-train-autonomous-driving-algorithms-for-road-safety/) at Microsoft Garage. This is currently a work in progress. We will continue to add more tutorials and scenarios based on requests from our users and the availability of our collaborators.
+项目面向自动驾驶初学者、研究人员和行业专家。项目以jupter notebook作为载体，使用流行的开源工具(如Keras、TensorFlow等)构建，项目提供数据集、源代码、AirSim模拟器，以便于实现自动驾驶快速仿真。
 
 ------
 <p align="center">
   <img src="AirSimE2EDeepLearning/car_driving.gif?raw=true" />
 </p>
 
+## 2. 软件架构
+目前，有以下教程：
 
-Autonomous driving has transcended far beyond being a crazy moonshot idea over the last half decade or so. It has quickly become one of the biggest technologies today that promises to shape our tomorrow, not very unlike when cars first came into existence. A big driver powering this change is the recent advances in software (Artificial Intelligence), hardware (GPUs, FPGAs etc.) and cloud computing, which have enabled ingest and processing of large amounts of data, making it possible for companies to push for levels 4 and 5 of autonomy. Achieving those levels of autonomy though, require training on hundreds of millions and sometimes hundreds of billions of miles worth of training data to demonstrate reliability, according to a [report](https://www.rand.org/pubs/research_reports/RR1478.html) from RAND.
-
-Despite the large amount of data collected every day, it is still insufficient to meet the demands of the ever increasing AI model complexity required by autonomous vehicles. One way to collect such huge amounts of data is through the use of simulation. Simulation makes it easy to not only collect data from a variety of different scenarios which would take days, if not months in the real world (like different weather conditions, varying daylight etc.), it also provides a safe test bed for trained models. With behavioral cloning, you can easily prepare highly efficient models in simulation and fine tune them using a relatively low amount of real world data. Then there are models built using techniques like Reinforcement Learning, which can only be trained in simulation. With simulators such as [AirSim](https://github.com/Microsoft/AirSim), working on these scenarios has become very easy.
-
-<p align="center">
-  <img src="DistributedRL/car_driving_2.gif?raw=true" />
-</p>
+- [使用端到端深度学习的自主驾驶：AirSim教程](./AirSimE2EDeepLearning)
+- [分布式深度强化学习在自主驾驶中的应用](./DistributedRL)
+- 以下教程不久将面世：
+    - 基于深度学习的车道检测
 
 
-We believe that the best way to make a technology grow is by making it easily available and accessible to everyone. This is best achieved by making the barrier of entry to it as low as possible. At Microsoft, our mission is to empower every person and organization on the planet to achieve more. That has been our primary motivation behind preparing this cookbook. Our aim with this project is to help you get quickly acquainted and familiarized with different onboarding scenarios in autonomous driving so you can take what you learn here and employ it in your everyday job with a minimal barrier to entry.
+## 3. 安装教程
+### 3.1 安装运行环境
 
-### Who is this cookbook for?
+- 切换conda国内安装源
+    - Anaconda官方软件包更新速度太慢，建议配置国内软件源
+      - 在Win操作系统用户目录下有一个.condarc文件，替换文件内所有内容
+      ```
+      channels:
+        - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
+        - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+        - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/
+        - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/
+      ssl_verify: true
+      ```
+  - 还原默认官方安装源
+      ```
+      conda config --remove-key channels
+      ```
+- 切换pip安装源  
+  - 永久配置pip安装源
+      - 做如下配置后，无需再使用-i选项
+          ```
+          pip install pip -U #升级 pip 到最新的版本后进行配置：
+          pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+          ```
 
-Our plan is to make this cookbook a valuable resource for beginners, researchers and industry experts alike. Tutorials in the cookbook are presented as [Jupyter notebooks](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html), making it very easy for you to download the instructions and get started without a lot of setup time. To help this further, wherever needed, tutorials come with their own datasets, helper scripts and binaries. While the tutorials leverage popular open-source tools (like Keras, TensorFlow etc.) as well as Microsoft open-source and commercial technology (like AirSim, Azure virtual machines, Batch AI, CNTK etc.), the primary focus is on the content and learning, enabling you to take what you learn here and apply it to your work using tools of your choice.  
+  - 还原默认pip安装源
+      ```
+      pip config unset global.index-url
+      ```
+- 安装依赖包
+    - 创建conda虚拟环境
 
-We would love to hear your feedback on how we can evolve this project to reach that goal. Please use the GitHub Issues section to get in touch with us regarding ideas and suggestions.
+    为了减少其它库的冲突问题，强烈建立新建一个虚拟环境
+    ```
+    # python版本务必选择3.6，否则运行过程中的冲突会让你怀疑人生
+    conda create -n airsim python=3.6
+    # 切换aisim虚拟环境
+    conda activate airsim
+    ```
+    - 使用InstallPackages.py安装依赖脚本
+    ```
+    # 推荐使用命令运行脚本，IDE工具有时候选择的虚拟环境不对
+    python InstallPackages.py
+    ```
 
-### Tutorials available
+    **注意事项：**
+    因为项目过于久远，安装现在的依赖包会和代码冲突，因此需要指定版本安装解决这个问题,InstallPackages.py已经修改为对应的版本。
+   
+    - tensorflow==1.5.0 
+      - 安装tensorflow1.x版本，预防keras版本冲突问题
+      - 需要安装特定版本1.5.0，否则报错:tensorflow_backend.py:64: The name tf.get_default_graph is deprecated. Please use tf.compat.v1.get_d
+    - keras==2.1.2
+      - 必须使用2.1.2版本，否则会报错:ValueError: `brightness_range should be tuple or list of two floats. Received: 0.0, https://github.com/microsoft/AutonomousDrivingCookbook/issues/89
+    - tornado==4.5
+      - 解决ZMQILoop和float变量*运算的问题
+    - h5py==2.10.0
+      - 解决警告问题
+    - 如果vscode启动内核失败，则执行如下命令
+  ```
+    conda install -n airsim ipykernel --update-deps --force-reinstall
+  ```
+至次环境搭建完毕。
 
-Currently, the following tutorials are available:
+## 4. 使用说明
 
-- [Autonomous Driving using End-to-End Deep Learning: an AirSim tutorial](./AirSimE2EDeepLearning/)
-- [Distributed Deep Reinforcement Learning for Autonomous Driving](./DistributedRL/)
+### 4.1 下载模拟器
 
-Following tutorials will be available soon:
+我们已经为本食谱中的教程创建了AirSim模拟环境的独立构建。您可以[从这里下载构建包](https://airsimtutorialdataset.blob.core.windows.net/e2edl/AD_Cookbook_AirSim.7z)。考虑使用[AzCopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy)，因为文件大小很大。
 
-- Lane Detection using Deep Learning
+### 4.2 下载数据集
 
-### Contributing
+模型的数据集相当大。你可以[从这里下载](https://aka.ms/AirSimTutorialDataset)。第一个笔记本将提供关于如何访问数据的指导，一旦你下载了它。最后的未压缩数据集大小约为3.25GB(虽然与训练实际的自动驾驶汽车所需的千兆字节数据相比，这还不够，但对于本教程来说应该足够了)。
 
-Please read the [instructions and guidelines for collaborators](https://github.com/Microsoft/AutonomousDrivingCookbook/blob/master/CONTRIBUTING.md) if you wish to add a new tutorial to the cookbook. 
+### 4.3 教程使用步骤
+#### 4.3.1 AirSimE2EDeepLearning端到端的深度学习
+##### 4.3.1.1 配置原始数据集目录和预处理后的数据集目录
+打开[DataExplorationAndPreparation.ipynb](./AirSimE2EDeepLearning/DataExplorationAndPreparation.ipynb)文件修改你的电脑上的实际目录
+```
+# << 配置下载的数据集目录 >>
+RAW_DATA_DIR = 'data_raw/'
 
-This project welcomes and encourages contributions and suggestions.  Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
+# << 配置预处理后(*.h5)的输出目录 >>
+COOKED_DATA_DIR = 'data_cooked/'
+```
 
-When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
+##### 4.3.1.2 配置Step1中的[配置预处理后(*.h5)的输出目录]和模型文件保存目录
+打开[TrainModel.ipynb](./AirSimE2EDeepLearning/TrainModel.ipynb)修改如下目录
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+```
+# << 配置前一步预处理好的数据集目录 >>
+COOKED_DATA_DIR = 'data_cooked/'
+
+# << 模型文件输出目录：随着梯度越来越小，模型会逐步更新 >>
+MODEL_OUTPUT_DIR = 'model' # 不建议修改，保持默认即可
+```
+
+##### 4.3.1.3 模型预处理、训练、推理预测及模拟器自动驾驶运行测试
+- 数据挖掘与准备
+    依次执行[DataExplorationAndPreparation.ipynb](./AirSimE2EDeepLearning/DataExplorationAndPreparation.ipynb)，完成数据预处理
+  
+- 模型训练
+    依次执行[TrainModel.ipynb](./AirSimE2EDeepLearning/TrainModel.ipynb)，完成模型训练
+
+- 启动AirSim模拟器
+  - 启动Powershell
+    第一次启动，用管理员权限打开Powershell shell，首先配置权限，否则会提示：**禁止运行脚本**
+    ```
+    set-ExecutionPolicy RemoteSigned
+    ```
+    以后启动powershell就不用管理员权限了。
+  - 启动AirSim模拟器
+    在Powershell中定位到模拟器安装位置AD_Cookbook_AirSim，执行如下命令启动
+    ```
+    .\AD_Cookbook_Start_AirSim.ps1 landscape
+    ```
+    landscape是数据集对应的场景，还有City、Hawii、Neighborhood三种场景。
+
+- 启动模型推理及自动驾驶
+  - 执行[TestModel.ipynb](./AirSimE2EDeepLearning/TestModel.ipynb)启动自动驾驶模拟
+    - 注意事项：TestModel.ipynb有可能在连上AisSim模拟器的时候卡死，应该是vscode jupyter工具的问题，将代码摘出来，直接运行python文件即可运行[Python版TestModel](./AirSimE2EDeepLearning/TestModel.py)。 
+  
+### 4.2 分布式强化学习
+待添加
