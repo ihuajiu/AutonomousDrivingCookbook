@@ -287,5 +287,7 @@ __pycache__/
 *.odx.cs
 *.xsd.cs
 
+AirSimE2EDeepLearning/model/models/
+
 # Python notebook checkpoints
-.ipynb_checkpoints
+# .ipynb_checkpoints

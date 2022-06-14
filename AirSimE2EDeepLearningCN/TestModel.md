@@ -1,0 +1,145 @@
+
+# 步骤2 -测试模型
+
+在本笔记本中，我们将使用我们在步骤1中训练的模型在AirSim中驾驶汽车。我们将对模型的性能进行一些观察，并提出一些潜在的实验来改进模型。
+
+首先，让我们导入一些库。
+
+
+```python
+from keras.models import load_model
+import sys
+import numpy as np
+import glob
+import os
+
+if ('../../PythonClient/' not in sys.path):
+    sys.path.insert(0, '../../PythonClient/')
+from AirSimClient import *
+
+# << Set this to the path of the model >>
+# If None, then the model with the lowest validation loss from training will be used
+MODEL_PATH = None
+
+if (MODEL_PATH == None):
+    models = glob.glob('model/models/*.h5') 
+    best_model = max(models, key=os.path.getctime)
+    MODEL_PATH = best_model
+    
+print('Using model {0} for testing.'.format(MODEL_PATH))
+```
+
+    Using TensorFlow backend.
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:493: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      _np_qint8 = np.dtype([("qint8", np.int8, 1)])
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:494: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      _np_quint8 = np.dtype([("quint8", np.uint8, 1)])
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:495: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      _np_qint16 = np.dtype([("qint16", np.int16, 1)])
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:496: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      _np_quint16 = np.dtype([("quint16", np.uint16, 1)])
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:497: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      _np_qint32 = np.dtype([("qint32", np.int32, 1)])
+    E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\tensorflow\python\framework\dtypes.py:502: FutureWarning: Passing (type, 1) or '1type' as a synonym of type is deprecated; in a future version of numpy, it will be understood as (type, (1,)) / '(1,)type'.
+      np_resource = np.dtype([("resource", np.ubyte, 1)])
+    
+
+    Using model model/models\model_model.13-0.0002441.h5 for testing.
+    
+
+接下来，我们将加载模型并连接到Landscape环境中的AirSim模拟器。在启动此步骤**之前**，请确保模拟器正在不同的进程中运行。
+
+
+```python
+model = load_model(MODEL_PATH)
+
+client = CarClient()
+client.confirmConnection()
+client.enableApiControl(True)
+car_controls = CarControls()
+print('Connection established!')
+```
+
+    WARNING:tensorflow:From E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\keras\backend\tensorflow_backend.py:1264: calling reduce_prod (from tensorflow.python.ops.math_ops) with keep_dims is deprecated and will be removed in a future version.
+    Instructions for updating:
+    keep_dims is deprecated, use keepdims instead
+    WARNING:tensorflow:From E:\Tools\Anaconda3\envs\airsim2\lib\site-packages\keras\backend\tensorflow_backend.py:1349: calling reduce_mean (from tensorflow.python.ops.math_ops) with keep_dims is deprecated and will be removed in a future version.
+    Instructions for updating:
+    keep_dims is deprecated, use keepdims instead
+    Waiting for connection: 
+    Connection established!
+    
+
+我们将设置汽车的初始状态，以及一些用于存储模型输出的缓冲区
+
+
+```python
+car_controls.steering = 0
+car_controls.throttle = 0
+car_controls.brake = 0
+
+image_buf = np.zeros((1, 59, 255, 3))
+state_buf = np.zeros((1,4))
+```
+
+我们将定义一个助手函数来从AirSim读取RGB图像，并准备好供模型使用
+
+
+```python
+def get_image():
+    image_response = client.simGetImages([ImageRequest(0, AirSimImageType.Scene, False, False)])[0]
+    image1d = np.fromstring(image_response.image_data_uint8, dtype=np.uint8)
+    image_rgba = image1d.reshape(image_response.height, image_response.width, 4)
+    
+    return image_rgba[76:135,0:255,0:3].astype(float)
+```
+
+最后，一个控制块来运行汽车。因为我们的模型不预测速度，所以我们将尝试保持汽车以恒定的5米/秒的速度运行。运行下面的方块将导致模型驱动汽车!
+
+
+```python
+while (True):
+    car_state = client.getCarState()
+    
+    if (car_state.speed < 5):
+        car_controls.throttle = 1.0
+    else:
+        car_controls.throttle = 0.0
+    
+    image_buf[0] = get_image()
+    state_buf[0] = np.array([car_controls.steering, car_controls.throttle, car_controls.brake, car_state.speed])
+    model_output = model.predict([image_buf, state_buf])
+    car_controls.steering = round(0.5 * float(model_output[0][0]), 2)
+    
+    print('Sending steering = {0}, throttle = {1}'.format(car_controls.steering, car_controls.throttle))
+    
+    client.setCarControls(car_controls)
+```
+
+## 观测和未来实验
+
+我们做到了!汽车在道路上行驶得很好，大部分时间都靠右行驶，小心地避开所有急转弯和可能驶离道路的地方。然而，您会立即注意到其他一些事情。首先，汽车的运动不是平稳的，特别是在那些桥梁上。此外，如果你让模型运行一段时间(略多于5分钟)，你会注意到汽车最终随机偏离道路并相撞。但这并不是什么令人沮丧的事情!请记住，这里我们仅仅触及了可能性的表面。事实是，能够让汽车学习驾驶几乎完美地使用一个非常小的数据集是一件值得骄傲的事情!
+
+- **思考练习2.1**:
+你可能已经注意到了，汽车在那些桥上的运动不是很平稳。你能想到为什么会这样吗?您可以使用我们在第0步中描述的技术来解决这个问题吗?
+
+- **思考练习2.2**:
+当汽车试图爬上其中一座山时，它似乎撞车了。你能想到一个原因吗?如何解决这个问题?(提示:你可能想看看汽车在上升时看到了什么)
+
+AirSim开启了一个充满可能性的世界。当你训练更复杂的模型和使用其他学习技术时，你可以尝试的新事物是没有限制的。以下是你可以尝试的一些直接的事情，可能需要修改本教程中提供的一些代码(包括帮助文件)，但不需要修改任何虚幻资产。
+
+- **探索性想法2.1**:
+如果你有机器学习的背景，你可能会问:为什么我们要在相同的环境中训练和测试?这不是过度拟合吗?好吧，你可以两边都说。虽然在训练和测试中使用相同的环境可能看起来过于适合该环境，但它也可以被视为从相同的概率分布中绘制示例。用于培训和测试的数据是不一样的，即使它们来自相同的分布。这就给我们带来了一个问题:在一个前所未有的不同环境中，这种模式将如何发展?
+
+当前的模型可能不会做得很好，因为其他可用的环境非常不同，并且包含该模型之前从未见过的元素(路口、交通、建筑等)。但是，要求这种模式在这些环境中很好地发挥作用是不公平的。想象一下，一个人只在山上开过车，一辈子都没见过其他汽车或十字路口，突然被要求在城市里开车。你认为他们会有多好?
+
+相反的情况应该很有趣。从城市环境中收集的数据进行培训是否容易推广到在山区驾驶?你自己试试吧。
+
+- **探索性理念2.2**:
+我们将这个问题表述为一个回归问题——我们预测一个连续值变量。相反，我们可以将问题表述为一个分类问题。更具体地说，我们可以为转向角度定义桶(…， -0.1， -0.05, 0, 0.05, 0.1，…)，将标签铲斗化，并预测每个图像的正确铲斗。如果我们做出这样的改变会发生什么?
+
+- **探索性想法2.3**:
+该模型目前为每个预测查看单个图像和单个状态。但是，我们可以访问历史数据。我们是否可以扩展模型，使用之前的N张图像和状态(例如，给定过去的3张图像和过去的3个状态，预测下一个转向角度)进行预测?(提示:这可能需要使用循环神经网络技术)
+
+- **探索性理念2.4**:
+AirSim不仅仅是我们提供的数据集。首先，我们只使用了一台相机，并且只在RGB模式下使用。AirSim可以让你收集数据在深度视图，分割视图，表面法线视图等每个相机可用。所以对于每个实例，你可能有20个不同的图像(5个相机在所有4种模式下运行)(我们在这里只使用了1个图像)。如何结合所有这些信息来帮助我们改进刚刚训练的模型?
